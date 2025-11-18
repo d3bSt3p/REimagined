@@ -11,13 +11,16 @@ public class TankControls : MonoBehaviour
     public float backwardMultiplier = 0.6f;
 
     [Header("Quick Turn Settings")]
-    public float quickTurnTime = 0.25f; // how long the 180° turn should take
-    private bool isQuickTurning = false;
+    public float quickTurnTime = 0.25f;
+    public float quickTurnCooldown = 0.5f;   
+    public bool IsQuickTurning { get; private set; }
+    public bool IsQuickTurnOnCooldown => quickTurnCooldownTimer > 0f;
+
+    private float quickTurnCooldownTimer = 0f;
 
     public float VerticalInput { get; private set; }
     public float HorizontalInput { get; private set; }
     public bool IsSprinting { get; private set; }
-    public bool DidQuickTurn { get; private set; }
 
     void Start()
     {
@@ -26,50 +29,49 @@ public class TankControls : MonoBehaviour
 
     void Update()
     {
-        // Read movement inputs
+        // Reduce cooldown timer
+        if (quickTurnCooldownTimer > 0f)
+            quickTurnCooldownTimer -= Time.deltaTime;
+
         VerticalInput = Input.GetAxis("Vertical");
         HorizontalInput = Input.GetAxis("Horizontal");
 
-        // Detect the Quick Turn combo (S held + K pressed this frame)
-        if (!isQuickTurning && Input.GetKey(KeyCode.Q))
+        // Quick Turn input — only if allowed
+        bool quickTurnPressed = Input.GetKey(KeyCode.Q);
+
+        if (!IsQuickTurning && quickTurnPressed && quickTurnCooldownTimer <= 0f)
         {
             StartCoroutine(QuickTurnCoroutine());
         }
 
-        // Rotation
-        if (!isQuickTurning)
+        // Normal turning blocked during quick turn
+        if (!IsQuickTurning)
         {
             transform.Rotate(0, HorizontalInput * turnSpeed * Time.deltaTime, 0);
         }
 
-        // Sprint only if moving forward
+        // Sprint logic
         bool shiftHeld = Input.GetKey(KeyCode.LeftShift);
         IsSprinting = shiftHeld && VerticalInput > 0.1f;
 
         // Movement speed logic
-        float currentSpeed;
+        float currentSpeed = 0;
 
-        if (VerticalInput > 0.1f)
+        if (!IsQuickTurning)
         {
-            currentSpeed = IsSprinting ? speed * sprintMultiplier : speed;
-        }
-        else if (VerticalInput < -0.1f)
-        {
-            currentSpeed = speed * backwardMultiplier;
-        }
-        else
-        {
-            currentSpeed = 0f;
+            if (VerticalInput > 0.1f)
+                currentSpeed = IsSprinting ? speed * sprintMultiplier : speed;
+            else if (VerticalInput < -0.1f)
+                currentSpeed = speed * backwardMultiplier;
         }
 
-        // Apply movement
         Vector3 moveDir = transform.forward * VerticalInput * currentSpeed;
         controller.Move(moveDir * Time.deltaTime - Vector3.up * 0.1f);
     }
 
     private IEnumerator QuickTurnCoroutine()
     {
-        isQuickTurning = true;
+        IsQuickTurning = true;
 
         Quaternion startRot = transform.rotation;
         Quaternion endRot = transform.rotation * Quaternion.Euler(0f, 180f, 0f);
@@ -85,9 +87,11 @@ public class TankControls : MonoBehaviour
             yield return null;
         }
 
-        // Make sure it ends cleanly at exactly 180°
         transform.rotation = endRot;
 
-        isQuickTurning = false;
+        // Start cooldown
+        quickTurnCooldownTimer = quickTurnCooldown;
+
+        IsQuickTurning = false;
     }
 }

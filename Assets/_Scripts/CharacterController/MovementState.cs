@@ -9,6 +9,9 @@ public class MovementState : MonoBehaviour
     public bool IsTurningLeft { get; private set; }
     public bool IsTurningRight { get; private set; }
     public bool IsSprinting { get; private set; }
+    public bool IsQuickTurning { get; private set; }
+    public bool IsQuickTurnOnCooldown { get; private set; }
+    public bool CanMove { get; private set; } = true;
 
     void Start()
     {
@@ -20,12 +23,26 @@ public class MovementState : MonoBehaviour
         float v = tank.VerticalInput;
         float h = tank.HorizontalInput;
 
-        IsMovingForward = v > 0.1f;
-        IsMovingBackward = v < -0.1f;
-        IsTurningLeft = h < -0.1f;
-        IsTurningRight = h > 0.1f;
+        IsQuickTurning = tank.IsQuickTurning;
+        IsQuickTurnOnCooldown = tank.IsQuickTurnOnCooldown;
 
-        // Sprint only when moving forward and holding shift
-        IsSprinting = tank.IsSprinting && IsMovingForward;
+        CanMove = !IsQuickTurning; // still freeze movement during turn
+
+        if (CanMove)
+        {
+            IsMovingForward = v > 0.1f;
+            IsMovingBackward = v < -0.1f;
+            IsTurningLeft  = h < -0.1f;
+            IsTurningRight = h > 0.1f;
+            IsSprinting = tank.IsSprinting;
+        }
+        else
+        {
+            IsMovingForward = false;
+            IsMovingBackward = false;
+            IsTurningLeft = false;
+            IsTurningRight = false;
+            IsSprinting = false;
+        }
     }
 }
